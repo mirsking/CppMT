@@ -1,9 +1,43 @@
 #include "CMT.h"
 
+#include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <iostream>
+#include "utils.h"
 
 namespace cmt {
+cv::Scalar colorTab[] =
+{
+    cv::Scalar(255,0,0),
+    cv::Scalar(0,255,0),
+    cv::Scalar(255, 100, 100)
+};
+int CMT::display_mirsking(cv::Mat img, std::vector<int>& labels)
+{
+    using namespace cv;
+    Mat im;
+    img.copyTo(im);
+    //Visualize the output
+    //It is ok to draw on im itself, as CMT only uses the grayscale image
+    for(size_t i = 0; i < points_active.size(); i++)
+    {
+        int label_idx = labels[i];
+        circle(im, points_active[i], 2, colorTab[label_idx]);
+    }
+
+    Point2f vertices[4];
+    bb_rot.points(vertices);
+    for (int i = 0; i < 4; i++)
+    {
+        line(im, vertices[i], vertices[(i+1)%4], Scalar(255,0,0));
+    }
+
+    std::string win_name = "mirsking_test_win";
+    imshow(win_name, im);
+
+    return waitKey(5);
+}
 
 void CMT::initialize(const Mat im_gray, const Rect rect)
 {
@@ -192,10 +226,82 @@ void CMT::processFrame(Mat im_gray) {
     //TODO: Use theta to suppress result
     bb_rot = RotatedRect(center,  size_initial * scale, rotation/CV_PI * 180);
 
+    //TODO: mirsking: here to cluster active points
+    std::vector<int> labels;
+    postCluster(points_active, classes_active, labels);
+    display_mirsking(im_gray, labels);
+
     //Remember current image
     im_prev = im_gray;
 
     FILE_LOG(logDEBUG) << "CMT::processFrame() return";
+}
+
+void CMT::postCluster(vector<Point2f> &points_active, vector<int>& classes_active, std::vector<int> &labels)
+{
+    FILE_LOG(logDEBUG) << "CMT::postCluster() call";
+
+    //step 1. try use kmeans to cluster the data
+    FILE_LOG(logDEBUG) << "CMT::postCluster() : clustering";
+    //TODO: parameter1: cluster_count
+    const int cluster_count = 2;
+    cv::Mat cluster_centers;
+    cv::kmeans(cv::Mat(points_active), cluster_count, labels,
+               cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 10, 0.1),
+               3, cv::KMEANS_PP_CENTERS,
+               cluster_centers);
+    //step 2. calulate the rectangle
+    FILE_LOG(logDEBUG) << "CMT::postCluster() : calulating overlap";
+    vector< vector<Point2f> > points_clusters(cluster_count);
+    vector< vector<int> > classes_clusters(cluster_count);
+    for(size_t i=0; i<labels.size(); i++)
+    {
+        points_clusters[labels[i]].push_back(points_active[i]);
+        classes_clusters[labels[i]].push_back(classes_active[i]);
+    }
+    vector<float> cluster_overlap(cluster_count);
+
+    for(size_t i=0; i<cluster_count; i++)
+    {
+        vector<Point2f> &points = points_clusters[i];
+        cv::RotatedRect rect = cv::minAreaRect(points);
+        cluster_overlap[i] = calcRectOverlap(rect.boundingRect(), bb_rot.boundingRect());
+        //std::cout << cluster_overlap[i] << std::endl;
+    }
+    float cluster_sigma = calcSigma(cluster_overlap);
+    //TODO: parameter 2: sigma threshold
+    const float cluster_threshold = 0.01;
+    if(cluster_sigma > cluster_threshold)
+    {
+        std::cout << "error points detected" << std::endl;
+        // find the max overlap and use their points;
+        float max_overlap = 0.0;
+        int max_overlap_index = -1;
+        for(size_t i = 0; i< cluster_count; i++)
+        {
+            if(cluster_overlap[i] > max_overlap)
+            {
+                max_overlap = cluster_overlap[i];
+                max_overlap_index = i;
+            }
+        }
+        if(max_overlap_index == -1)
+        {
+            FILE_LOG(logWARNING) << "CMT::postCluster() : all rectangle has no overlap !";
+        }
+        else
+        {
+            points_active = points_clusters[max_overlap_index];
+            classes_active = classes_clusters[max_overlap_index];
+            bb_rot = cv::minAreaRect(points_active);
+        }
+
+    }
+
+
+
+
+    FILE_LOG(logDEBUG) << "CMT::postCluster() return";
 }
 
 } /* namespace CMT */

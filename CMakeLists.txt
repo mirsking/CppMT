@@ -2,7 +2,7 @@ project (CMT)
 
 cmake_minimum_required (VERSION 2.6)
 
-option(BUILD_TRAX_CLIENT "Build the trax client." ON)
+option(BUILD_TRAX_CLIENT "Build the trax client." OFF)
 
 find_package(OpenCV REQUIRED)
 
@@ -11,6 +11,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 add_definitions ("-Wall")
+add_definitions(-std=c++11)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 
@@ -34,7 +35,7 @@ endif()
 target_link_libraries(cmt ${OpenCV_LIBS})
 
 if(BUILD_TRAX_CLIENT)
-    set(TRAX_DIR "/home/mirsking/projects/trax" CACHE FILEPATH "Path to trax")
+    set(TRAX_DIR "." CACHE FILEPATH "Path to trax")
 
     include_directories(${TRAX_DIR}/lib)
 

@@ -62,7 +62,7 @@ void Matcher::matchGlobal(const vector<KeyPoint> & keypoints, const Mat descript
         float distance2 = m[1].distance / desc_length;
         int matched_class = classes[m[0].trainIdx];
 
-        if (matched_class == -1) continue;
+        if (matched_class == -1) continue;// background matches
         if (distance1 > thr_dist) continue;
         if (distance1/distance2 > thr_ratio) continue;
 

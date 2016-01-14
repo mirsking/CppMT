@@ -75,8 +75,12 @@ int display(Mat im, CMT & cmt)
     }
 
     imshow(WIN_NAME, im);
-
+#define MIRSKING_DEBUG
+#ifndef MIRSKING_DEBUG
     return waitKey(5);
+#else
+    return waitKey(60);
+#endif
 }
 
 string write_rotated_rect(RotatedRect rect)

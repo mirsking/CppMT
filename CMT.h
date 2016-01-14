@@ -38,6 +38,12 @@ public:
     RotatedRect bb_rot;
 
 private:
+    void postCluster(vector<Point2f> &points_active,
+                          vector<int>& classes_active,
+                          std::vector<int> &labels);
+    int display_mirsking(cv::Mat img, std::vector<int>& labels);
+
+private:
     Ptr<FeatureDetector> detector;
     Ptr<DescriptorExtractor> descriptor;
 
