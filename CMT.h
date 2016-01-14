@@ -36,12 +36,13 @@ public:
 
     vector<Point2f> points_active; //public for visualization purposes
     RotatedRect bb_rot;
+    std::vector<RotatedRect> rot_rects; // the first is final rotated rectangle, the last is the origin rectangle
 
 private:
-    void postCluster(vector<Point2f> &points_active,
+    int postCluster(vector<Point2f> &points_active,
                           vector<int>& classes_active,
                           std::vector<int> &labels);
-    int display_mirsking(cv::Mat img, std::vector<int>& labels);
+    int display_mirsking(cv::Mat img, int index);
 
 private:
     Ptr<FeatureDetector> detector;

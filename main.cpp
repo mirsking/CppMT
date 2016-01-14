@@ -68,10 +68,20 @@ int display(Mat im, CMT & cmt)
     }
 
     Point2f vertices[4];
-    cmt.bb_rot.points(vertices);
+
+
+    //show origin rectangle
+    cmt.rot_rects.rbegin()->points(vertices);
     for (int i = 0; i < 4; i++)
     {
         line(im, vertices[i], vertices[(i+1)%4], Scalar(255,0,0));
+    }
+
+    //show last rectangle
+    cmt.bb_rot.points(vertices);
+    for (int i = 0; i < 4; i++)
+    {
+        line(im, vertices[i], vertices[(i+1)%4], Scalar(0,0,255));
     }
 
     imshow(WIN_NAME, im);

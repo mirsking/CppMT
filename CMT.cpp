@@ -13,7 +13,7 @@ cv::Scalar colorTab[] =
     cv::Scalar(0,255,0),
     cv::Scalar(255, 100, 100)
 };
-int CMT::display_mirsking(cv::Mat img, std::vector<int>& labels)
+int CMT::display_mirsking(cv::Mat img, int index)
 {
     using namespace cv;
     Mat im;
@@ -22,15 +22,23 @@ int CMT::display_mirsking(cv::Mat img, std::vector<int>& labels)
     //It is ok to draw on im itself, as CMT only uses the grayscale image
     for(size_t i = 0; i < points_active.size(); i++)
     {
-        int label_idx = labels[i];
-        circle(im, points_active[i], 2, colorTab[label_idx]);
+        circle(im, points_active[i], 2, Scalar(255,0,0));
     }
 
-    Point2f vertices[4];
-    bb_rot.points(vertices);
-    for (int i = 0; i < 4; i++)
+    for(size_t i = 0; i<rot_rects.size()-1; i++)
     {
-        line(im, vertices[i], vertices[(i+1)%4], Scalar(255,0,0));
+        Scalar sc;
+        if(i==index)
+            sc = Scalar(0,0,255);
+        else
+            sc = Scalar(255,0,0);
+
+        Point2f vertices[4];
+        rot_rects[i].points(vertices);
+        for (int i = 0; i < 4; i++)
+        {
+            line(im, vertices[i], vertices[(i+1)%4], sc);
+        }
     }
 
     std::string win_name = "mirsking_test_win";
@@ -228,8 +236,8 @@ void CMT::processFrame(Mat im_gray) {
 
     //TODO: mirsking: here to cluster active points
     std::vector<int> labels;
-    postCluster(points_active, classes_active, labels);
-    display_mirsking(im_gray, labels);
+    int max_index = postCluster(points_active, classes_active, labels);
+    display_mirsking(im_gray, max_index);
 
     //Remember current image
     im_prev = im_gray;
@@ -237,7 +245,14 @@ void CMT::processFrame(Mat im_gray) {
     FILE_LOG(logDEBUG) << "CMT::processFrame() return";
 }
 
-void CMT::postCluster(vector<Point2f> &points_active, vector<int>& classes_active, std::vector<int> &labels)
+/**
+ * @brief CMT::postCluster
+ * @param points_active
+ * @param classes_active
+ * @param labels
+ * @return return the maximal cluster index
+ */
+int CMT::postCluster(vector<Point2f> &points_active, vector<int>& classes_active, std::vector<int> &labels)
 {
     FILE_LOG(logDEBUG) << "CMT::postCluster() call";
 
@@ -261,22 +276,24 @@ void CMT::postCluster(vector<Point2f> &points_active, vector<int>& classes_activ
     }
     vector<float> cluster_overlap(cluster_count);
 
+    rot_rects.clear();
     for(size_t i=0; i<cluster_count; i++)
     {
         vector<Point2f> &points = points_clusters[i];
         cv::RotatedRect rect = cv::minAreaRect(points);
+        rot_rects.push_back(rect);
         cluster_overlap[i] = calcRectOverlap(rect.boundingRect(), bb_rot.boundingRect());
         //std::cout << cluster_overlap[i] << std::endl;
     }
     float cluster_sigma = calcSigma(cluster_overlap);
     //TODO: parameter 2: sigma threshold
     const float cluster_threshold = 0.01;
+    int max_overlap_index = -1;
     if(cluster_sigma > cluster_threshold)
     {
         std::cout << "error points detected" << std::endl;
         // find the max overlap and use their points;
         float max_overlap = 0.0;
-        int max_overlap_index = -1;
         for(size_t i = 0; i< cluster_count; i++)
         {
             if(cluster_overlap[i] > max_overlap)
@@ -285,23 +302,31 @@ void CMT::postCluster(vector<Point2f> &points_active, vector<int>& classes_activ
                 max_overlap_index = i;
             }
         }
+
         if(max_overlap_index == -1)
         {
             FILE_LOG(logWARNING) << "CMT::postCluster() : all rectangle has no overlap !";
+                // final rot not update
+            rot_rects.push_back(bb_rot); // last is origin rectangle
         }
         else
         {
+            //final rot updated
             points_active = points_clusters[max_overlap_index];
             classes_active = classes_clusters[max_overlap_index];
-            bb_rot = cv::minAreaRect(points_active);
+            cv::RotatedRect rect = rot_rects[max_overlap_index];
+            rot_rects.push_back(bb_rot); // last is origin rectangle
+            bb_rot = rect;
         }
-
+    }
+    else
+    {
+        // final rot not update
+        rot_rects.push_back(bb_rot); // last is origin rectangle
     }
 
-
-
-
     FILE_LOG(logDEBUG) << "CMT::postCluster() return";
+    return max_overlap_index;
 }
 
 } /* namespace CMT */
