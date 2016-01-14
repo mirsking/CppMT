@@ -38,5 +38,15 @@ T calcSigma(std::vector<T>& input)
     return sigma;
 }
 
+bool isInRect(cv::RotatedRect &rect, cv::Point2f &point)
+{
+    cv::Rect rec= rect.boundingRect();
+    if(point.x >= rec.x && point.x <=rec.x+rec.width
+            && point.y >= rec.y && point.y <= rec.y+rec.height)
+        return true;
+    else
+        return false;
+}
+
 }
 #endif // UTILS_H

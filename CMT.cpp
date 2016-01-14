@@ -25,7 +25,7 @@ int CMT::display_mirsking(cv::Mat img, int index)
         circle(im, points_active[i], 2, Scalar(255,0,0));
     }
 
-    for(size_t i = 0; i<rot_rects.size()-1; i++)
+    for(size_t i = 0; i<rot_rects.size()-1; i++) // last is the origin rect, no need to output
     {
         Scalar sc;
         if(i==index)
@@ -280,7 +280,10 @@ int CMT::postCluster(vector<Point2f> &points_active, vector<int>& classes_active
     for(size_t i=0; i<cluster_count; i++)
     {
         vector<Point2f> &points = points_clusters[i];
-        cv::RotatedRect rect = cv::minAreaRect(points);
+        // sometimes cluster points is empty
+        cv::RotatedRect rect;
+        if(!points.empty())
+            rect = cv::minAreaRect(points);
         rot_rects.push_back(rect);
         cluster_overlap[i] = calcRectOverlap(rect.boundingRect(), bb_rot.boundingRect());
         //std::cout << cluster_overlap[i] << std::endl;
@@ -289,6 +292,7 @@ int CMT::postCluster(vector<Point2f> &points_active, vector<int>& classes_active
     //TODO: parameter 2: sigma threshold
     const float cluster_threshold = 0.01;
     int max_overlap_index = -1;
+    cv::RotatedRect bb_rot_bak = bb_rot;
     if(cluster_sigma > cluster_threshold)
     {
         std::cout << "error points detected" << std::endl;
@@ -305,25 +309,47 @@ int CMT::postCluster(vector<Point2f> &points_active, vector<int>& classes_active
 
         if(max_overlap_index == -1)
         {
+            // final rot not update
             FILE_LOG(logWARNING) << "CMT::postCluster() : all rectangle has no overlap !";
-                // final rot not update
-            rot_rects.push_back(bb_rot); // last is origin rectangle
         }
         else
         {
-            //final rot updated
+            //final updated
             points_active = points_clusters[max_overlap_index];
             classes_active = classes_clusters[max_overlap_index];
-            cv::RotatedRect rect = rot_rects[max_overlap_index];
-            rot_rects.push_back(bb_rot); // last is origin rectangle
-            bb_rot = rect;
+#if 0
+            // not only use the feature point in maximum cluster
+            // but also the feature pint in both other rectangle and origin rectangle
+            cv::Rect bb_rot_bb = bb_rot.boundingRect();
+            vector<Point2f> points_add;
+            vector<int> classes_add;
+            for(int i=0; i<cluster_count; i++)
+            {
+                if(i!=max_overlap_index)
+                {
+                    auto& points_clu = points_clusters[i];
+                    for(size_t j=0; j< points_clu.size(); j++)
+                    {
+                        Point2f &pt = points_clu[j];
+                        if(pt.inside(bb_rot_bb))
+                        {
+                            points_add.push_back(pt);
+                            classes_add.push_back(classes_clusters[i][j]);
+                        }
+                    }
+                }
+            }
+
+            auto points_old = points_active;
+            auto classes_old = classes_active;
+            fusion.preferFirst(points_old, classes_old, points_add, classes_add, points_active, classes_active);
+            rot_rects[max_overlap_index] = cv::minAreaRect(points_active);
+#endif
+            bb_rot = rot_rects[max_overlap_index];
         }
     }
-    else
-    {
-        // final rot not update
-        rot_rects.push_back(bb_rot); // last is origin rectangle
-    }
+
+    rot_rects.push_back(bb_rot_bak); // last is origin rectangle
 
     FILE_LOG(logDEBUG) << "CMT::postCluster() return";
     return max_overlap_index;

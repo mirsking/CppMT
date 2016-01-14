@@ -85,7 +85,7 @@ int display(Mat im, CMT & cmt)
     }
 
     imshow(WIN_NAME, im);
-#define MIRSKING_DEBUG
+//#define MIRSKING_DEBUG
 #ifndef MIRSKING_DEBUG
     return waitKey(5);
 #else

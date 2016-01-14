@@ -59,7 +59,8 @@ vector<float> getNextLineAndSplitIntoFloats(istream& str)
 }
 
 cv::VideoWriter g_vid;
-int display(Mat im, CMT & cmt, cv::VideoWriter& vid = g_vid)
+
+int display(Mat im, CMT & cmt, cv::VideoWriter& vid=g_vid)
 {
     //Visualize the output
     //It is ok to draw on im itself, as CMT only uses the grayscale image
@@ -69,10 +70,20 @@ int display(Mat im, CMT & cmt, cv::VideoWriter& vid = g_vid)
     }
 
     Point2f vertices[4];
-    cmt.bb_rot.points(vertices);
+
+
+    //show origin rectangle
+    cmt.rot_rects.rbegin()->points(vertices);
     for (int i = 0; i < 4; i++)
     {
         line(im, vertices[i], vertices[(i+1)%4], Scalar(255,0,0));
+    }
+
+    //show last rectangle
+    cmt.bb_rot.points(vertices);
+    for (int i = 0; i < 4; i++)
+    {
+        line(im, vertices[i], vertices[(i+1)%4], Scalar(0,0,255));
     }
 
     if(vid.isOpened())
@@ -83,10 +94,16 @@ int display(Mat im, CMT & cmt, cv::VideoWriter& vid = g_vid)
     {
         FILE_LOG(logINFO) << "failed to write to frame";
     }
-    imshow(WIN_NAME, im);
 
+    imshow(WIN_NAME, im);
+//#define MIRSKING_DEBUG
+#ifndef MIRSKING_DEBUG
     return waitKey(5);
+#else
+    return waitKey(60);
+#endif
 }
+
 
 string write_rotated_rect(RotatedRect rect)
 {
