@@ -19,6 +19,11 @@ add_executable (cmt common.cpp gui.cpp main.cpp
     CMT.cpp Consensus.cpp Fusion.cpp Matcher.cpp Tracker.cpp
     fastcluster/fastcluster.cpp getopt/getopt.cpp
     )
+add_executable (cmt_benchmark common.cpp gui.cpp main_benchmark.cpp
+    CMT.cpp Consensus.cpp Fusion.cpp Matcher.cpp Tracker.cpp
+    fastcluster/fastcluster.cpp getopt/getopt.cpp
+    )
+target_link_libraries(cmt_benchmark ${OpenCV_LIBS})
 else()
 add_executable (cmt common.cpp gui.cpp main.cpp
     CMT.cpp Consensus.cpp Fusion.cpp Matcher.cpp Tracker.cpp
